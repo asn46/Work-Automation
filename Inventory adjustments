@@ -1,0 +1,97 @@
+from selenium import webdriver
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from datetime import date 
+import time
+import os
+import openpyxl
+from openpyxl import load_workbook
+import string
+
+PATH1 = "C:\Program Files (x86)\chromedriver.exe"
+
+driver = webdriver.Chrome(PATH1)
+driver.get("https://fabhabitat.odoo.com/web/login")
+
+time.sleep(1)
+
+login = driver.find_element_by_name("login")
+login.send_keys(creds.login)
+
+password = driver.find_element_by_name("password")
+password.send_keys(creds.password)
+
+password.send_keys(Keys.RETURN)
+
+time.sleep(1)
+
+inv_button = driver.find_element_by_id('result_app_3')
+inv_button.click()
+
+time.sleep(1)
+
+operations_dropdown = driver.find_element_by_xpath("/html/body/header/nav/ul[1]/li[2]/a")
+operations_dropdown.click()
+
+inv_adjustments = driver.find_element_by_xpath("/html/body/header/nav/ul[1]/li[2]/div/a[8]/span")
+inv_adjustments.click()
+
+time.sleep(1)
+
+today = date.today().strftime("%m/%d/%Y")
+today_css = '[title*="{}"]'.format(today)
+
+test_date = '[title*="04/13/2022"]' 
+    
+#added test date - trying this on weekend -- replace later
+data_row = driver.find_elements_by_class_name("o_data_row")
+for i in data_row:
+    if i.find_element_by_css_selector(test_date) and i.find_element_by_css_selector('[title*="Fab Habitat Returns"]'):
+        i.click()
+        break
+
+time.sleep(1)        
+
+p_moves = driver.find_element_by_name("action_view_related_move_lines")
+p_moves.click()
+
+time.sleep(1)
+
+export = driver.find_element_by_css_selector('[title*="Export All"]' )
+export.click()
+
+time.sleep(3)
+
+PATH2 = 'C:\\Users\\aseem\Downloads\stock.move.line.xlsx'
+wb = load_workbook(PATH2)
+wb_sheet = wb['Sheet1']
+min_column = wb.active.min_column
+max_column = wb.active.max_column
+min_row = wb.active.min_row
+max_row = wb.active.max_row
+
+fhr_sheet = wb.create_sheet('Fab Habitat Returns')
+
+fhr_sheet['A1'] = 'sku'
+fhr_sheet['B1'] = 'name'
+fhr_sheet['C1'] = 'back in stock date'
+fhr_sheet['D1'] = 'ordered qty'
+fhr_sheet['E1'] = 'inventory adjustment'
+fhr_sheet['F1'] = 'warehouse'
+fhr_sheet['G1'] = 'comments'
+
+today2 = date.today().strftime("%m.%d.%y")
+ 
+for i in range(2,max_row+1):
+    x = wb_sheet['B{}'.format(i)].value[1:12]
+    y = wb_sheet['F{}'.format(i)].value
+    fhr_sheet['A{}'.format(i)] = x
+    fhr_sheet['E{}'.format(i)] = y
+    fhr_sheet['F{}'.format(i)] = 'NJ'
+    fhr_sheet['G{}'.format(i)] = 'FH returns {}'.format(today2)
+
+wb.remove_sheet(wb_sheet)
+
+wb.save('Fab Habitat returns {}.xlsx'.format(today2))
+
+os.remove(PATH2)
