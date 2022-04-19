@@ -1,0 +1,173 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+from datetime import date 
+import time
+import os
+
+from openpyxl import load_workbook
+
+#-----------------------------------------------------------
+
+PATH1 = "C:\Program Files (x86)\chromedriver.exe" #change per device
+downloads_path = "C:\\Users\\aseem\\Downloads" #change per device
+save_path = "C:\\Users\\aseem\\Desktop\\returns\\" #change per device 
+
+#-----------------------------------------------------------
+
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+    
+chrome_prefs = {"download.default_directory": downloads_path} 
+chrome_options.experimental_options["prefs"] = chrome_prefs
+
+driver = webdriver.Chrome(PATH1, options=chrome_options)
+
+driver.get("https://fabhabitat.odoo.com/web/login")
+
+try:
+    login =  WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.NAME, "login"))
+    )
+except:
+    driver.quit()
+    print("Login failed... Login field not found.")
+
+login.send_keys(creds.login)
+
+try:
+    password = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.NAME, "password"))
+    )
+except:
+    driver.quit()
+    print("Login failed... Password field not found.")    
+
+password.send_keys(creds.password)
+password.send_keys(Keys.RETURN)
+print('Login successful...\n')
+
+try:
+    inv_button = WebDriverWait(driver,15).until(
+        EC.presence_of_element_located((By.ID, "result_app_3"))
+    )
+except:
+    driver.quit()
+    print("Process failed... Inventory button not found.")  
+
+inv_button.click()
+print('Inventory button clicked...\n')
+
+try:
+    operations_dropdown = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.XPATH, "/html/body/header/nav/ul[1]/li[2]/a"))
+    )
+except:
+    driver.quit()
+    print("Process failed... Operations dropdown menu not found.")  
+    
+operations_dropdown.click()
+print('Operations dropdown menu opened...\n')
+
+try:
+    inv_adjustments = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.XPATH, "/html/body/header/nav/ul[1]/li[2]/div/a[8]/span"))
+    )
+except:
+    driver.quit()
+    print("Process failed... Inventory adjustments option not found.") 
+    
+inv_adjustments.click()
+print('Inventory adjustments option clicked...\n')
+
+time.sleep(1)
+
+today = date.today().strftime("%m/%d/%Y")
+today_css = '[title*="{}"]'.format(today)
+
+data_row = driver.find_elements_by_class_name("o_data_row")
+for i in data_row:
+    if i.find_element_by_css_selector(today_css) and i.find_element_by_css_selector("[title*='Fab Habitat Returns']"):
+        i.click()
+        print("Found today's Fab Hab returns...\n")
+        break
+
+try:
+    p_moves = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.NAME, "action_view_related_move_lines"))
+    )
+except:
+    driver.quit()
+    print("Process failed... Product moves option not found.")
+    
+p_moves.click()
+print('Product moves opened...\n')
+
+try:
+    export = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, '[title*="Export All"]'))
+    )
+except:
+    driver.quit()
+    print("Process failed... Export button not found.")
+    
+export.click()
+print('Exporting adjustments...\n')
+
+
+def latest_download_file():
+    os.chdir(downloads_path)
+    files = sorted(os.listdir(os.getcwd()), key=os.path.getmtime)
+    newest = files[-1]
+    return newest
+
+fileends = "crdownload"
+while fileends == "crdownload":
+    time.sleep(1)
+    newest_file = latest_download_file()
+    if "crdownload" in newest_file:
+        fileends = "crdownload"
+    else:
+        fileends = "none"
+        
+PATH3 = downloads_path + '\\stock.move.line.xlsx'
+wb = load_workbook(PATH3)
+wb_sheet = wb['Sheet1']
+min_column = wb.active.min_column
+max_column = wb.active.max_column
+min_row = wb.active.min_row
+max_row = wb.active.max_row
+
+fhr_sheet = wb.create_sheet('Fab Habitat Returns')
+print('FHR Sheet started...\n')
+
+fhr_sheet['A1'] = 'sku'
+fhr_sheet['B1'] = 'name'
+fhr_sheet['C1'] = 'back in stock date'
+fhr_sheet['D1'] = 'ordered qty'
+fhr_sheet['E1'] = 'inventory adjustment'
+fhr_sheet['F1'] = 'warehouse'
+fhr_sheet['G1'] = 'comments'
+
+today2 = date.today().strftime("%m.%d.%y")
+ 
+for i in range(2,max_row+1):
+    x = wb_sheet['B{}'.format(i)].value[1:12]
+    y = wb_sheet['F{}'.format(i)].value
+    fhr_sheet['A{}'.format(i)] = x
+    fhr_sheet['E{}'.format(i)] = y
+    fhr_sheet['F{}'.format(i)] = 'NJ'
+    fhr_sheet['G{}'.format(i)] = 'FH returns {}'.format(today2)
+
+wb.remove_sheet(wb_sheet)
+
+wb.save(save_path+'Fab Habitat returns {}.xlsx'.format(today2))
+os.remove(PATH3)
+
+print('FHR sheet is complete!')
