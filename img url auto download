@@ -1,0 +1,29 @@
+import requests
+import os
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter as gcl
+#---------------------------------------------------------------------------
+links_fname = 'Desktop\\img_urls.xlsx' #enter file with image urls
+
+save_path = 'C:\\Users\\anerl\\save_path' #enter save directory 
+
+#---------------------------------------------------------------------------
+
+wb = load_workbook(filename = links_fname)
+ws1 =  wb.active
+
+max_row = ws1.max_row
+max_col = ws1.max_column
+
+for row_num in range(2, max_row+1):
+    for col_num in range(2, max_col+1):
+        url = ws1['{}{}'.format(gcl(col_num),row_num)].value
+        r= requests.get(url)
+        print(r.status_code)
+        print('--------------------')
+        file_name = str(ws1['A{}'.format(row_num)].value)+'_'+str(gcl(col_num))+'.jpg'
+        f_location = os.path.join(save_path, file_name)
+        open(f_location, 'wb').write(r.content)
+        print(os.path.getsize(f_location)/1000000)
+        print('\n')
+        
