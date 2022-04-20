@@ -154,18 +154,18 @@ max_row = wb_sheet.max_row
 
 fhr_sheet = wb.create_sheet('Fab Habitat Returns')
 print('FHR Sheet started...\n')
-fhr_sheet['A1'] = 'sku'
-fhr_sheet['B1'] = 'name'
-fhr_sheet['C1'] = 'back in stock date'
-fhr_sheet['D1'] = 'ordered qty'
-fhr_sheet['E1'] = 'inventory adjustment'
-fhr_sheet['F1'] = 'warehouse'
-fhr_sheet['G1'] = 'comments'
+fhr_sheet['A1'] = 'Sku'
+fhr_sheet['B1'] = 'Name'
+fhr_sheet['C1'] = 'Back In Stock Date'
+fhr_sheet['D1'] = 'Ordered Qty'
+fhr_sheet['E1'] = 'Inventory Adjustment'
+fhr_sheet['F1'] = 'Warehouse'
+fhr_sheet['G1'] = 'Comments'
 
 today2 = date.today().strftime("%m.%d.%y")
  
 for i in range(2,max_row+1):
-    x = wb_sheet['B{}'.format(i)].value[1:12]
+    x = wb_sheet['B{}'.format(i)].value[1:13]
     y = wb_sheet['F{}'.format(i)].value
     fhr_sheet['A{}'.format(i)] = x
     fhr_sheet['E{}'.format(i)] = y
@@ -237,18 +237,18 @@ wb_sheet = wb['Sheet1']
 
 rlr_sheet = wb.create_sheet('Realife Returns')
 print('RLR Sheet started...\n')
-rlr_sheet['A1'] = 'sku'
-rlr_sheet['B1'] = 'name'
-rlr_sheet['C1'] = 'back in stock date'
-rlr_sheet['D1'] = 'ordered qty'
-rlr_sheet['E1'] = 'inventory adjustment'
-rlr_sheet['F1'] = 'warehouse'
-rlr_sheet['G1'] = 'comments' 
+rlr_sheet['A1'] = 'Sku'
+rlr_sheet['B1'] = 'Name'
+rlr_sheet['C1'] = 'Back In Stock Date'
+rlr_sheet['D1'] = 'Ordered Qty'
+rlr_sheet['E1'] = 'Inventory Adjustment'
+rlr_sheet['F1'] = 'Warehouse'
+rlr_sheet['G1'] = 'Comments' 
 
 max_row = wb_sheet.max_row
 
 for i in range(2,max_row+1):
-    x = wb_sheet['B{}'.format(i)].value[1:12]
+    x = wb_sheet['B{}'.format(i)].value[1:13]
     y = wb_sheet['F{}'.format(i)].value
     rlr_sheet['A{}'.format(i)] = x
     rlr_sheet['E{}'.format(i)] = y
