@@ -1,0 +1,275 @@
+#v3.1
+
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+from datetime import date
+import time
+import os   
+
+from openpyxl import load_workbook
+
+#-----------------------------------------------------------
+
+PATH1 = "C:\\Users\\anerl\\chromedriver.exe" #change per device
+downloads_path = "C:\\Users\\anerl\\Downloads" #change per device
+save_path = "C:\\Users\\anerl\\Desktop\\returns\\" #change per device or as needed
+
+today = date.today().strftime("%m/%d/%Y")
+# run_date = '04/18/2022'
+run_date = today 
+
+#-----------------------------------------------------------
+
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--no-sandbox")
+chrome_options.add_argument("--disable-dev-shm-usage")
+    
+chrome_prefs = {"download.default_directory": downloads_path} 
+chrome_options.experimental_options["prefs"] = chrome_prefs
+
+driver = webdriver.Chrome(PATH1, options=chrome_options)
+
+driver.get("https://fabhabitat.odoo.com/web/login")
+
+try:
+    login =  WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.NAME, "login"))
+    )
+except:
+    driver.quit()
+    print("Login failed... Login field not found.")
+
+login.send_keys(creds.login)
+
+try:
+    password = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.NAME, creds.password))
+    )
+except:
+    driver.quit()
+    print("Login failed... Password field not found.")    
+
+password.send_keys('F@bh@b!tat2o!8')
+password.send_keys(Keys.RETURN)
+print('Login successful...\n')
+
+try:
+    inv_button = WebDriverWait(driver,15).until(
+        EC.presence_of_element_located((By.ID, "result_app_3"))
+    )
+except:
+    driver.quit()
+    print("Process failed... Inventory button not found.")  
+
+inv_button.click()
+print('Inventory button clicked...\n')
+
+try:
+    operations_dropdown = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.XPATH, "/html/body/header/nav/ul[1]/li[2]/a"))
+    )
+except:
+    driver.quit()
+    print("Process failed... Operations dropdown menu not found.")  
+    
+operations_dropdown.click()
+print('Operations dropdown menu opened...\n')
+
+try:
+    inv_adjustments = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.XPATH, "/html/body/header/nav/ul[1]/li[2]/div/a[8]/span"))
+    )
+except:
+    driver.quit()
+    print("Process failed... Inventory adjustments option not found.") 
+    
+inv_adjustments.click()
+print('Inventory adjustments option clicked...\n')
+
+time.sleep(1)
+
+
+search_date_element = '[title*="{}"]'.format(run_date)
+
+data_row = driver.find_elements_by_class_name("o_data_row")
+for i in data_row:
+    try:
+        if i.find_element_by_css_selector(search_date_element) and i.find_element_by_css_selector("[title*='Fab Habitat Returns']"):
+            i.click()
+            print("Found today's Fab Hab returns...\n")
+            break
+    except:
+        continue
+
+try:
+    p_moves = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.NAME, "action_view_related_move_lines"))
+    )
+except:
+    driver.quit()
+    print("Process failed... Product moves option not found.")
+    
+p_moves.click()
+print('FH Product moves opened...\n')
+
+try:
+    export = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, '[title*="Export All"]'))
+    )
+except:
+    driver.quit()
+    print("Process failed... Export button not found.")
+    
+export.click()
+print('Exporting FH adjustments...\n')
+
+
+def latest_download_file():
+    os.chdir(downloads_path)
+    files = sorted(os.listdir(os.getcwd()), key=os.path.getmtime)
+    newest = files[-1]
+    return newest
+    
+fileends = "crdownload"
+while fileends == "crdownload":
+    time.sleep(1)
+    newest_file = latest_download_file()
+    if "crdownload" in newest_file:
+        fileends = "crdownload"
+    else:
+        fileends = "none"
+        
+
+PATH3 = downloads_path + '\\stock.move.line.xlsx'
+wb = load_workbook(PATH3)
+wb_sheet = wb['Sheet1']
+
+max_row = wb_sheet.max_row
+
+fhr_sheet = wb.create_sheet('Fab Habitat Returns')
+print('FHR Sheet started...\n')
+fhr_sheet['A1'] = 'SKU'
+fhr_sheet['B1'] = 'Name'
+fhr_sheet['C1'] = 'Back In Stock Date'
+fhr_sheet['D1'] = 'Ordered Qty'
+fhr_sheet['E1'] = 'Inventory Adjustment'
+fhr_sheet['F1'] = 'Warehouse'
+fhr_sheet['G1'] = 'Comments'
+
+today2 = date.today().strftime("%m.%d.%y")
+ 
+for i in range(2,max_row+1):
+    x = wb_sheet['B{}'.format(i)].value[1:13]
+    y = wb_sheet['F{}'.format(i)].value
+    fhr_sheet['A{}'.format(i)] = x
+    fhr_sheet['E{}'.format(i)] = y
+    fhr_sheet['F{}'.format(i)] = 'NJ'
+    fhr_sheet['G{}'.format(i)] = 'FH returns {}'.format(today2)
+
+wb.remove_sheet(wb_sheet)
+wb.save(save_path+'Fab Habitat returns {}.xlsx'.format(today2))
+
+os.remove(PATH3)
+
+print('FHR sheet is complete.')
+
+
+breadcrumbs = driver.find_elements_by_class_name("breadcrumb-item")
+breadcrumbs[0].click()
+print("Going back to adjustments...\n")
+
+time.sleep(1)
+
+data_row = driver.find_elements_by_class_name("o_data_row")
+for i in data_row:
+    try:
+        if i.find_element_by_css_selector(search_date_element) and i.find_element_by_css_selector("[title*='Realife Returns']"):
+            print("Found today's Realife returns...\n")
+            i.click()
+            break
+    except:
+        continue           
+
+try:
+    p_moves = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.NAME, "action_view_related_move_lines"))
+    )
+except:
+    driver.quit()
+    print("Process failed... Product moves option not found.")
+
+p_moves.click()
+print('RL Product moves opened...\n')
+
+try:
+    export = WebDriverWait(driver,10).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, '[title*="Export All"]'))
+    )
+except:
+    driver.quit()
+    print("Process failed... Export button not found.")
+
+export.click()
+print('Exporting RL adjustments...\n')
+
+
+fileends = "crdownload"
+while fileends == "crdownload":
+    time.sleep(1)
+    newest_file = latest_download_file()
+    if "crdownload" in newest_file:
+        fileends = "crdownload"
+    else:
+        fileends = "none"
+
+driver.quit()
+
+options = Options()
+options.add_argument("--user-data-dir=C:\\Users\\anerl\\AppData\\Local\\Google\\Chrome\\User Data")
+options.add_argument("--profile-directory=Default")
+wd = webdriver.Chrome(PATH1, options=options)
+
+wd.get('https://fabhabitat.com/PeaceLoveSecurityZXYStall2022/updateproduct/updateproduct/index/key/17880b943f51244bfb347e599b529c1a0263b3ce4d76c50d837f1dd658215530/')
+
+PATH4 = downloads_path + '\\stock.move.line.xlsx'
+wb = load_workbook(PATH4)
+wb_sheet = wb['Sheet1']
+
+
+rlr_sheet = wb.create_sheet('Realife Returns')
+print('RLR Sheet started...\n')
+rlr_sheet['A1'] = 'Sku'
+rlr_sheet['B1'] = 'Name'
+rlr_sheet['C1'] = 'Back In Stock Date'
+rlr_sheet['D1'] = 'Ordered Qty'
+rlr_sheet['E1'] = 'Inventory Adjustment'
+rlr_sheet['F1'] = 'Warehouse'
+rlr_sheet['G1'] = 'Comments' 
+
+max_row = wb_sheet.max_row
+
+for i in range(2,max_row+1):
+    x = wb_sheet['B{}'.format(i)].value[1:13]
+    y = wb_sheet['F{}'.format(i)].value
+    rlr_sheet['A{}'.format(i)] = x
+    rlr_sheet['E{}'.format(i)] = y
+    rlr_sheet['F{}'.format(i)] = 'NJ'
+    rlr_sheet['G{}'.format(i)] = 'Realife returns {}'.format(today2)  
+
+wb.remove_sheet(wb_sheet)    
+wb.save(save_path+'Realife returns {}.xlsx'.format(today2))
+
+os.remove(PATH4)
+
+wd.maximize_window()
+
+print('RLR sheet is complete.')
+print('Returns are ready to upload.')
+
+
