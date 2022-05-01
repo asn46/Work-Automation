@@ -1,0 +1,206 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+from datetime import date
+import time
+import os   
+
+from openpyxl import load_workbook
+
+#-------------------------------------------------------------------------------------------
+
+
+class OdooSpider(object):
+    
+    def __init__(self, driver_path, dl_path, save_path, headless=True):
+        self.driver_path = driver_path
+        self.dl_path = dl_path
+        self.save_path = save_path
+    
+        chrome_options = Options()
+    
+        if headless:
+            chrome_options.add_argument("--headless")
+            chrome_options.add_argument("--no-sandbox")
+            chrome_options.add_argument("--disable-dev-shm-usage")
+        
+        chrome_prefs = {"download.default_directory": dl_path}
+        chrome_options.experimental_options["prefs"] = chrome_prefs
+        
+        self.driver = webdriver.Chrome(driver_path, options=chrome_options)
+        
+    
+    def login(self, login_url, email, password):
+        self.driver.get(login_url)
+        try:
+            login_name =  WebDriverWait(self.driver,10).until(EC.presence_of_element_located((By.NAME, "login")))
+        except:
+            self.driver.quit()
+            print("Login failed... Login field not found.")
+        
+        try:
+            login_pw = WebDriverWait(self.driver,10).until(EC.presence_of_element_located((By.NAME, "password")))
+        except:
+            self.driver.quit()
+            print("Login failed... Password field not found.")
+                                                         
+        login_name.send_keys(email)
+        login_pw.send_keys(password)
+        login_pw.send_keys(Keys.RETURN)
+    
+    
+    def find_and_click_1(self, locator, locator_text, multiple=False, index=None):
+        
+        if locator == 'name':
+            identifier = By.NAME
+        elif locator == 'id':
+            identifier = By.ID
+        elif locator == 'xpath':
+            identifier = By.XPATH
+        elif locator == 'css selector':
+            identifier = By.CSS_SELECTOR
+        elif locator == 'class name':
+            identifier = By.CLASS_NAME
+        else:
+            pass
+        
+        if not multiple:
+            try:
+                button = WebDriverWait(self.driver,15).until(EC.presence_of_element_located((identifier, locator_text)))
+            except:
+                self.driver.quit()
+                print('{} not found.'.format(locator_text))
+            button.click()
+        else:         
+            try:
+                button = WebDriverWait(self.driver,15).until(EC.presence_of_all_elements_located((identifier, locator_text)))
+            except:
+                self.driver.quit()
+                print('{} not found.'.format(locator_text))
+            button[index].click()
+                            
+    
+    def find_and_click_2(self, run_today=True, rtn_type='FH'):
+        
+        time.sleep(1)
+        if run_today:
+            run_date = date.today().strftime("%m/%d/%Y")
+        else:
+            run_date = '04/29/2022' #test date
+
+        search_date_element = '[title*="{}"]'.format(run_date)
+        
+        if rtn_type == 'FH':
+            returns = 'Fab Habitat Returns'
+        elif rtn_type == 'RL':
+            returns = 'Realife Returns'
+        else:
+            self.driver.quit()
+            print('Incorrect rtn_type argument, please use FH or RL.')
+        
+        data_row = self.driver.find_elements_by_class_name("o_data_row")
+        for i in data_row:
+            try:
+                if i.find_element_by_css_selector(search_date_element) and i.find_element_by_css_selector("[title*='{}']".format(returns)):
+                    i.click()
+                    print("Found today's {}...\n".format(returns))
+                    break
+            
+            except:
+                print('Checking again...')
+                continue
+    
+    
+    def latest_download_file(self):
+        os.chdir(self.dl_path)
+        files = sorted(os.listdir(os.getcwd()), key=os.path.getmtime)
+        newest = files[-1]
+        return newest
+        
+        
+        
+    def wait_for_dl(self):
+        fileends = "crdownload"
+        while fileends == "crdownload":
+            time.sleep(1)
+            newest_file = self.latest_download_file()
+            if "crdownload" in newest_file:
+                fileends = "crdownload"
+            else:
+                fileends = "none"
+                                                    
+    
+    def create_upload_sheet(self, rtn_type='FH', run_today=True):
+          
+        exportPath = self.dl_path + '\\stock.move.line.xlsx'
+        wb = load_workbook(exportPath)
+        wb_sheet = wb['Sheet1']
+        max_row = wb_sheet.max_row
+        if rtn_type == 'FH':
+            returns = 'Fab Habitat Returns'
+        elif rtn_type == 'RL':
+            returns = 'Realife Returns'
+        else:
+            print('Incorrect rtn_type, please use FH or RL.')
+        
+        rtn_sheet = wb.create_sheet('{}'.format(returns))
+        print('{} Sheet started...\n'.format(returns))
+        rtn_sheet['A1'] = 'SKU'
+        rtn_sheet['B1'] = 'Name'
+        rtn_sheet['C1'] = 'Back In Stock Date'
+        rtn_sheet['D1'] = 'Ordered Qty'
+        rtn_sheet['E1'] = 'Inventory Adjustment'
+        rtn_sheet['F1'] = 'Warehouse'
+        rtn_sheet['G1'] = 'Comments'
+        
+        if run_today:
+            run_date = date.today().strftime("%m.%d.%y")
+        else:
+            run_date = '04.29.22' #test date
+                
+        for i in range(2,max_row+1):
+            x = wb_sheet['B{}'.format(i)].value[1:13]
+            y = wb_sheet['F{}'.format(i)].value
+            rtn_sheet['A{}'.format(i)] = x
+            rtn_sheet['E{}'.format(i)] = y
+            rtn_sheet['F{}'.format(i)] = 'NJ'
+            rtn_sheet['G{}'.format(i)] = '{} {}'.format(returns, run_date)
+
+        wb.remove_sheet(wb_sheet)
+        wb.save('C:\\Users\\aseem\\Desktop\\returns\\{} {}.xlsx'.format(returns, run_date))
+
+        os.remove(exportPath)
+
+        print('{} sheet is complete.'.format(returns))
+
+#-------------------------------------------------------------------
+
+#OdooSpider instance
+OSi = OdooSpider("C:\\Program Files (x86)\\chromedriver.exe", "C:\\Users\\aseem\\Downloads", "C:\\Users\\aseem\\Desktop\\returns\\", headless=True)
+
+OSi.login("https://fabhabitat.odoo.com/web/login", creds.email, creds.password)
+OSi.find_and_click_1('id', 'result_app_3') #inv button
+OSi.find_and_click_1('xpath', "/html/body/header/nav/ul[1]/li[2]/a") #operations dropdown
+OSi.find_and_click_1('xpath', "/html/body/header/nav/ul[1]/li[2]/div/a[8]/span") #inv adjustments
+OSi.find_and_click_2(run_today=False, rtn_type='FH')
+OSi.find_and_click_1('name', "action_view_related_move_lines") #fh product moves
+OSi.find_and_click_1('css selector', '[title*="Export All"]') #fh export button
+OSi.wait_for_dl()
+OSi.create_upload_sheet(rtn_type='FH', run_today=False)
+
+OSi.find_and_click_1('class name', "breadcrumb-item", multiple=True, index=0) #going back to inv adjustments list
+OSi.find_and_click_2(run_today=False, rtn_type='RL')
+OSi.find_and_click_1('name', "action_view_related_move_lines") #rl product moves
+OSi.find_and_click_1('css selector', '[title*="Export All"]') #rl export button
+OSi.wait_for_dl()
+OSi.driver.quit()
+OSi.create_upload_sheet(rtn_type='RL', run_today=False)
+
+print('Returns are ready to upload.')
+
+
+    
