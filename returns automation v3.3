@@ -1,0 +1,113 @@
+import os
+from playwright.sync_api import sync_playwright
+from datetime import date
+from time import sleep as timeSleep
+from openpyxl import load_workbook
+
+
+def odoo_playwright():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(accept_downloads=True)
+    
+        page = context.new_page()
+        page.goto('https://fabhabitat.odoo.com/web/login')
+        page.is_visible('div.formgroup field-login')
+        page.fill('input#login', 'sales@fabhabitat.com')
+        page.fill('input#password','F@bh@b!tat2o!8')
+        page.click('button[type=submit]')
+        page.goto('https://fabhabitat.odoo.com/web#action=261&model=stock.inventory&view_type=list&cids=1&menu_id=146')
+
+        run_date = date.today().strftime("%m/%d/%Y")
+   
+        row = page.locator('.o_data_row')
+        FHR = row.locator(":scope", has_text="Fab Habitat Returns")
+        today_FHR = FHR.locator(":scope", has_text="{}".format(run_date))
+        today_FHR.click()
+        p_moves = page.locator("button", has_text="Product Moves")
+        p_moves.click()
+        with page.expect_download() as download_info:
+            export = page.locator('css=[title="Export All"]')
+            export.click()
+        download = download_info.value
+        download.save_as(r'C:\Users\aseem\Downloads\FHR_moves.xlsx')
+        
+        page.goto('https://fabhabitat.odoo.com/web#action=261&model=stock.inventory&view_type=list&cids=1&menu_id=146')
+        row = page.locator('.o_data_row')
+        RLR = row.locator(":scope", has_text="Realife Returns")
+        today_RLR = RLR.locator(":scope", has_text="{}".format(run_date))
+        today_RLR.click()
+        p_moves.click()
+        with page.expect_download() as download_info:
+            export = page.locator('css=[title="Export All"]')
+            export.click()
+        download = download_info.value
+        download.save_as(r'C:\Users\aseem\Downloads\RLR_moves.xlsx')
+        
+        context.close()
+        browser.close()
+
+
+
+def latest_download_file():
+    dl_path = 'C:\\Users\\aseem\\Downloads'
+    os.chdir(dl_path)
+    files = sorted(os.listdir(os.getcwd()), key=os.path.getmtime)
+    newest = files[-1]
+    return newest
+        
+        
+        
+def wait_for_dl():
+    fileends = "crdownload"
+    while fileends == "crdownload":
+        timeSleep(1)
+        newest_file = latest_download_file()
+        if "crdownload" in newest_file:
+            fileends = "crdownload"
+        else:
+            fileends = "none"
+
+
+
+def create_upload_sheet(name, moves=1):
+    if moves == 1:
+        moves_file = r'C:\Users\aseem\Downloads\FHR_moves.xlsx'
+    else:
+        moves_file = r'C:\Users\aseem\Downloads\RLR_moves.xlsx'
+    
+    wb = load_workbook(moves_file)
+    wb_sheet = wb['Sheet1']
+    max_row = wb_sheet.max_row
+    rtn_sheet = wb.create_sheet('{}'.format(name))
+    rtn_sheet['A1'] = 'SKU'
+    rtn_sheet['B1'] = 'Name'
+    rtn_sheet['C1'] = 'Back In Stock Date'
+    rtn_sheet['D1'] = 'Ordered Qty'
+    rtn_sheet['E1'] = 'Inventory Adjustment'
+    rtn_sheet['F1'] = 'Warehouse'
+    rtn_sheet['G1'] = 'Comments'
+        
+    run_date = date.today().strftime("%m.%d.%y")
+                
+    for i in range(2,max_row+1):
+        x = wb_sheet['B{}'.format(i)].value[1:13]
+        y = wb_sheet['F{}'.format(i)].value
+        rtn_sheet['A{}'.format(i)] = x
+        rtn_sheet['E{}'.format(i)] = y
+        rtn_sheet['F{}'.format(i)] = 'NJ'
+        rtn_sheet['G{}'.format(i)] = '{} {}'.format(name, run_date)
+
+    wb.remove_sheet(wb_sheet)
+    wb.save('C:\\Users\\aseem\\Desktop\\returns\\{} {}.xlsx'.format(name, run_date))
+
+    os.remove(moves_file)
+    
+    
+    
+
+odoo_playwright()
+wait_for_dl()
+create_upload_sheet('Fab Habitat Returns', moves=1)
+create_upload_sheet('Realife Returns', moves=2)    
+print('Sheets ready to upload.')
