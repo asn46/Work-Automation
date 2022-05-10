@@ -1,0 +1,42 @@
+#main.py
+import time
+import requests
+from playwright.sync_api import sync_playwright
+from requests_html import HTMLSession
+
+
+url = 'https://sellercentral.amazon.com/gp/ssof/shipping-queue.html/ref=xx_fbashipq_dnav_xx#fbashipment'
+
+def run(playwright, FBA_number=None):
+    context = playwright.chromium.launch_persistent_context(
+        
+        user_data_dir="C:\\Users\\aseem\\AppData\\Local\\Google\\Chrome\\User Data",
+        headless=False,
+        args=["--profile-directory=Default"],
+    
+    )
+   
+    page = context.new_page()
+    #page.goto('https://google.com') #test
+    page.goto(url)
+    time.sleep(1)
+    row = page.locator('id=content-row')
+    target_row = row.locator(':scope', has_text=f'{FBA_number}')
+    cell = target_row.locator('#numeric-cell >> nth=1')
+    #rcvd_qty = target_row.locator('id=received_quantity_text').text_content()
+    #ship_qty = cell.text_content()
+    #print(f'Shipped Qty: {ship_qty}\nReceived Qty: {rcvd_qty}')
+    
+    print(cell.text_content())
+    context.close()
+    
+
+#---------------------------------------------------------------------
+if __name__ == "__main__":
+    with sync_playwright() as p:
+        run(p, FBA_number='FBA16NLJ9NPZ')
+        
+        
+        
+        
+    
