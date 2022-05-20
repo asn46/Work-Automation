@@ -6,48 +6,56 @@ from freshdesk.v2.api import API
 
 
 def FBA_ticket_check():
-    a = API('fabhabitat2021.freshdesk.com', hidden.api_key)
+    a = API('fabhabitat2021.freshdesk.com', '7mcIyxGVhEvDhzyLDrV')
     scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name(hidden.api_key_path, scope)
+    creds = creds
     client = gspread.authorize(creds)
 
     update = None
-    
+    FBA_orders = []
     for ticket in a.tickets.list_tickets():
-        
+        print(str(ticket))
         fullstring = str(ticket)
-        
-        if 'FBA Inbound Shipment' in fullstring and not 'Bill of Lading' in fullstring:
-            condition = 1
-        else:
-            condition = 0
-        
-        if condition == 1:
+       
+        if 'FBA Inbound Shipment' in fullstring and not 'Bill' in fullstring:
+            fba_order = dict.fromkeys(['Name', 'Order', 'Status', 'Created Date', 'Ship Date', 'Reach Date', 'Closed Date', 'Ship Qty', 'Rcv Qty'])
             FBA_number =  fullstring[fullstring.find("(")+1 : fullstring.rfind(")")]
             substring1 = 'FBA Inbound Shipment Checked-In'
             substring2 = 'FBA Inbound Shipment Receiving'
             substring3 = 'FBA Inbound Shipment Received In-Full'
+            datetime = str(ticket.created_at)
+            date_match = re.match(r'\d\d\d\d-\d\d-\d\d', date)
+            date = date_match.group(0)
             
             if substring1 in fullstring:
                 update = 'Reached FBA'
+                fba_order['Reach Date'] = date
+                
             elif substring2 in fullstring:
                 update = 'Being Received'
+                fba_order['Reach Date'] = date
+                
             elif substring3 in fullstring:
                 update = 'Closed'
+                fba_order['Closed Date'] = date
             else:
-                break
                 print('There was an error.')
-        
-            sheet = client.open('python_test').sheet1
-            x = sheet.find(f'{FBA_number}')
-            sheet.update_cell(x.row, x.col+2, f'{update}')  
             
-            print('FBA sheet updated')
+            fba_order['Name'] = FBA_number
+            fba_order['Status'] = update
+            
+        
+    #sheet = client.open('python_test').sheet1
+    #x = sheet.find(f'{FBA_number}')
+    #sheet.update_cell(x.row, x.col+2, f'{update}')  
+    #print('FBA sheet updated')
         
         else:
             pass
-            
+#-------------------------------------------------------------------------
 
+if __name__ == '__Main__':
+    
 FBA_ticket_check()
         
         
