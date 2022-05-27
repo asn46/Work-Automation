@@ -95,7 +95,7 @@ not_in_gsheet = []
 
 def transfer_to_gsheet(FBA_orders):
     scope = ['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/drive.file', 'https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name(r'C:\Users\aseem\Desktop\studied-yen-349220-3e2e61eb0d86.json', scope)
+    creds = ServiceAccountCredentials.from_json_keyfile_name(secret.creds, scope)
     client = gspread.authorize(creds)
     
     with sync_playwright() as p:
